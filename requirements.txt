@@ -1,0 +1,46 @@
+from database import criar_tabelas
+from user import cadastrar_usuario, login
+from botijao import registrar_botijao, acompanhar_botijao
+
+def menu_principal():
+    while True:
+        print("=== CONTROLE DE GÁS ===")
+        print("1 - Cadastrar novo usuário")
+        print("2 - Fazer login")
+        print("3 - Sair")
+
+        opcao = input("Escolha uma opção: ")
+
+        if opcao == "1":
+            cadastrar_usuario()
+        elif opcao == "2":
+            usuario_id = login()
+            if usuario_id:
+                menu_usuario(usuario_id)
+        elif opcao == "3":
+            print("\nSaindo... até logo!\n")
+            break
+        else:
+            print("Opção inválida!\n")
+
+def menu_usuario(usuario_id):
+    while True:
+        print("=== MENU DO USUÁRIO ===")
+        print("1 - Registrar novo botijão")
+        print("2 - Acompanhar botijão (encerramento)")
+        print("3 - Voltar ao menu inicial")
+
+        opcao = input("Escolha uma opção: ")
+
+        if opcao == "1":
+            registrar_botijao(usuario_id)
+        elif opcao == "2":
+            acompanhar_botijao(usuario_id)
+        elif opcao == "3":
+            break
+        else:
+            print("Opção inválida!\n")
+
+if __name__ == "__main__":
+    criar_tabelas()
+    menu_principal()
