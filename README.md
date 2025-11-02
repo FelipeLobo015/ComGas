@@ -93,7 +93,7 @@ Gerar gráfico de duração média por litragem
 
 🔹 Observações Importantes
 
-A litragem deve ser enviada como string (ex.: "5kg", "13kg"), para compatibilidade com o banco (VARCHAR(10)).
+A litragem deve ser enviada como number (ex.: "5", "13"), para compatibilidade com o banco (number).
 
 O formato de data é DD/MM/AAAA.
 
