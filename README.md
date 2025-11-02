@@ -1,48 +1,33 @@
-Monitor de Botijões - UPX 3
+🧯 Monitor de Botijões – UPX 3
 
-Aplicativo desktop em Python para registrar, acompanhar e finalizar botijões de gás, além de gerar gráficos de duração média.
+Aplicativo desktop desenvolvido em Python para registrar, acompanhar e finalizar botijões de gás, auxiliando o usuário a monitorar o consumo e avaliar o desempenho de cada botijão ao longo do tempo.
+O sistema também gera gráficos automáticos com base na duração de uso, permitindo identificar padrões de consumo e otimizar o uso doméstico.
 
-🔹 Pré-requisitos
+⚙️ Tecnologias Utilizadas
 
-Antes de rodar o app, certifique-se de ter instalado:
+Python 3.10+ – Linguagem principal do projeto
 
-Python 3.10 ou superior
-Baixe em: https://www.python.org/downloads/
+Tkinter – Interface gráfica desktop
 
-PostgreSQL (ou outro banco configurado) com a tabela botijoes e usuarios.
+PostgreSQL (Supabase) – Banco de dados relacional
 
-Bibliotecas Python necessárias:
+psycopg2-binary – Conexão entre Python e PostgreSQL
 
-pip install psycopg2-binary pandas matplotlib
+pandas – Manipulação e análise de dados
 
+matplotlib – Geração de gráficos de consumo
 
-Obs.: psycopg2-binary é necessário para conectar ao PostgreSQL.
-
-🔹 Estrutura do Projeto
+📁 Estrutura do Projeto
 UPX3/
-│
-├── main_app.py          # Código principal do app (Tkinter)
-├── botijao.py           # Funções de botijões
-├── user.py              # Funções de usuário
-├── db.py                # Conexão com banco de dados
-├── README.md            # Este tutorial
-└── ... outros arquivos
+├── main_app.py       # Interface principal (Tkinter)
+├── botijao.py        # Funções de registro, acompanhamento e finalização
+├── user.py           # Funções de autenticação e cadastro de usuários
+├── db.py             # Conexão com o banco de dados PostgreSQL
+└── README.md         # Documentação do projeto
 
-🔹 Configuração do Banco de Dados
+🗄️ Configuração do Banco de Dados
 
-No PostgreSQL, crie a tabela botijoes (exemplo):
-
-CREATE TABLE botijoes (
-    id SERIAL PRIMARY KEY,
-    usuario_id INT NOT NULL,
-    litragem VARCHAR(10) NOT NULL,
-    empresa VARCHAR(50) NOT NULL,
-    data_inicio DATE NOT NULL,
-    data_fim DATE
-);
-
-
-E a tabela usuarios:
+No PostgreSQL (ou Supabase), crie as tabelas abaixo:
 
 CREATE TABLE usuarios (
     id SERIAL PRIMARY KEY,
@@ -50,8 +35,18 @@ CREATE TABLE usuarios (
     senha VARCHAR(50) NOT NULL
 );
 
+CREATE TABLE botijoes (
+    id SERIAL PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    litragem VARCHAR(10) NOT NULL,
+    empresa VARCHAR(50) NOT NULL,
+    data_inicio DATE NOT NULL,
+    data_fim DATE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+);
 
-No arquivo db.py, configure sua conexão:
+
+No arquivo db.py, configure sua conexão com o banco:
 
 import psycopg2
 
@@ -63,52 +58,63 @@ def conectar():
         password="SUA_SENHA"
     )
 
-🔹 Como Rodar o App
+💻 Como Executar o Projeto
 
-Abra o terminal/cmd e navegue até a pasta do projeto:
+Instale as dependências:
+
+pip install psycopg2-binary pandas matplotlib
+
+
+Navegue até a pasta do projeto:
 
 cd C:\caminho\para\UPX3
 
 
-Execute o app:
+Execute o aplicativo:
 
 python main_app.py
 
 
-A tela de login aparecerá. Você pode:
+Funcionalidades disponíveis:
 
-Fazer login com um usuário existente.
+Login e cadastro de usuário
 
-Criar um novo usuário pelo cadastro na mesma tela.
+Registro de botijões (com litragem, empresa e data de início)
 
-No menu principal, você pode:
+Finalização de botijões (com data final e cálculo automático de desempenho)
 
-Registrar novo botijão
+Acompanhamento completo de botijões
 
-Finalizar botijão (com recomendação de duração)
+Geração de gráfico de duração média com Matplotlib
 
-Acompanhar todos os botijões
+📅 Formatos e Regras
 
-Gerar gráfico de duração média por litragem
+Data: DD/MM/AAAA → convertida automaticamente para formato do banco (AAAA-MM-DD).
 
-🔹 Observações Importantes
+Litragem: aceita valores numéricos, ex.: 5, 13, 20.
 
-A litragem deve ser enviada como number (ex.: "5", "13"), para compatibilidade com o banco (number).
+O aplicativo exibe todas as mensagens dentro da interface, sem depender do terminal.
 
-O formato de data é DD/MM/AAAA.
+👨‍💻 Integrantes do Grupo
+RA / Nome Completo
+235573	/ Miguel Santana Cruz
+235834 / Lauro Cesar Leandro Filho
+235104 / Felipe Henri Leite Lobo
+235319 / Pedro Henrique M. N. Cardoso
+240236	/ Jorge Martesi Júnior
+235319 / João Marcelo Ferreira Cau
+🧱 Histórico e Controle de Versão
 
-O app exibe mensagens informativas no próprio aplicativo, sem precisar abrir o terminal.
+O projeto foi desenvolvido colaborativamente via Git e GitHub, com commits individuais de cada integrante.
 
-🔹 Bibliotecas Utilizadas
+Cada atualização contemplou incrementos de funcionalidades, correções de integração e ajustes de interface.
 
-Tkinter
- → Interface gráfica
+As branches foram utilizadas para desenvolvimento modular (main_app, botijao, interface, database) e posterior integração na main.
 
-psycopg2-binary
- → Conexão PostgreSQL
+🚀 Próximos Passos
 
-pandas
- → Manipulação de dados
+Implementar notificações automáticas quando o consumo for atípico.
 
-matplotlib
- → Gráficos de duração
+Criar relatórios mensais em PDF.
+
+Disponibilizar uma versão web integrada à nuvem.
