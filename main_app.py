@@ -91,7 +91,7 @@ def finalizar_botijao_app():
         return
 
     # Pega botijões disponíveis
-    conn_text = acompanhar_botijao(usuario_id)
+    conn_text = acompanhar_botijao(usuario_id, somente_ativos=True)
     linhas = [l for l in conn_text.split("\n") if l.startswith("ID:")]
     if not linhas:
         messagebox.showinfo("Info", "Nenhum botijão disponível para finalizar.")
