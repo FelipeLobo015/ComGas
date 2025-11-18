@@ -54,20 +54,24 @@ def registrar_botijao_gui():
     if not usuario_id:
         messagebox.showerror("Erro", "Faça login primeiro!")
         return
-    capacidade = entry_capacidade.get().strip()
+
+    tipo_escolhido = combo_botijao.get()
     empresa = entry_empresa.get().strip()
     data_inicio = entry_inicio.get().strip()
-    if not (capacidade and empresa and data_inicio):
+
+    if not tipo_escolhido or not empresa or not data_inicio:
         messagebox.showerror("Erro", "Preencha todos os campos.")
         return
-    try:
-        float(capacidade)  # garante número
-    except:
-        messagebox.showerror("Erro", "Litragem deve ser um número.")
+
+    litragem = opcoes_botijao.get(tipo_escolhido)
+    if not litragem:
+        messagebox.showerror("Erro", "Selecione um tipo de botijão válido.")
         return
-    registrar_botijao(usuario_id, capacidade, data_inicio, empresa)
-    messagebox.showinfo("Registro", "Botijão registrado com sucesso!")
-    entry_capacidade.delete(0, tk.END)
+
+    registrar_botijao(usuario_id, litragem, data_inicio, empresa)
+    messagebox.showinfo("Registro", f"Botijão {tipo_escolhido} registrado com sucesso!")
+
+    combo_botijao.set("")
     entry_empresa.delete(0, tk.END)
     entry_inicio.delete(0, tk.END)
     mostrar_frame(frame_menu)
@@ -83,30 +87,58 @@ def abrir_acompanhamento():
     text_acompanhamento.insert(tk.END, texto)
     mostrar_frame(frame_acompanhamento)
 
-# ===== FINALIZAR BOTIJÃO =====
+# ===== FINALIZAR BOTIJÃO — ALTERADO AQUI =====
 def finalizar_botijao_app():
     global usuario_id
     if not usuario_id:
         messagebox.showerror("Erro", "Faça login primeiro!")
         return
 
-    # Pega botijões disponíveis
-    conn_text = acompanhar_botijao(usuario_id, somente_ativos=True)
-    linhas = [l for l in conn_text.split("\n") if l.startswith("ID:")]
-    if not linhas:
-        messagebox.showinfo("Info", "Nenhum botijão disponível para finalizar.")
+    from db import conectar
+    try:
+        conn = conectar()
+        cursor = conn.cursor()
+
+        # PEGAR APENAS BOTIJÕES EM USO (eficacia = NULL)
+        cursor.execute("""
+            SELECT id, litragem, data_inicial, empresa
+            FROM botijoes
+            WHERE usuario_id = %s AND eficacia IS NULL
+            ORDER BY data_inicial DESC
+        """, (usuario_id,))
+
+        registros = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        messagebox.showerror("Erro", f"Erro ao buscar botijões: {e}")
         return
 
+    if not registros:
+        messagebox.showinfo("Info", "Nenhum botijão em uso para finalizar.")
+        return
+
+    # Construção da lista para o Combobox
+    linhas = []
+    for id_b, litragem, data_inicial, empresa in registros:
+        data_str = data_inicial.strftime("%d/%m/%Y")
+        linhas.append(f"ID: {id_b} | {litragem}kg | {empresa} | Início: {data_str}")
+
+    # JANELA DE FINALIZAÇÃO
     def confirmar_finalizacao():
-        selecao = combo_botijao.get()
+        selecao = combo_botijao_final.get()
         if not selecao:
             messagebox.showerror("Erro", "Selecione um botijão.")
             return
-        botijao_id = selecao.split("|")[0].replace("ID:","").strip()
+
+        botijao_id = selecao.split("|")[0].replace("ID:", "").strip()
         data_fim = entry_data.get().strip()
+
         if not data_fim:
             messagebox.showerror("Erro", "Informe a data de término.")
             return
+
         msg = finalizar_botijao(usuario_id, botijao_id, data_fim)
         messagebox.showinfo("Resultado", msg)
         janela_finalizar.destroy()
@@ -116,8 +148,8 @@ def finalizar_botijao_app():
     janela_finalizar.geometry("400x250")
 
     tk.Label(janela_finalizar, text="Selecione o Botijão:").pack(pady=5)
-    combo_botijao = ttk.Combobox(janela_finalizar, width=50, values=linhas)
-    combo_botijao.pack(pady=5)
+    combo_botijao_final = ttk.Combobox(janela_finalizar, width=50, values=linhas)
+    combo_botijao_final.pack(pady=5)
 
     tk.Label(janela_finalizar, text="Data de Término (DD/MM/AAAA):").pack(pady=5)
     entry_data = tk.Entry(janela_finalizar, width=20)
@@ -168,15 +200,29 @@ tk.Button(frame_menu, text="Sair", command=lambda: mostrar_frame(frame_login), w
 # ===== REGISTRO BOTIJÃO ===
 # =========================
 tk.Label(frame_registro, text="Registrar Novo Botijão", font=("Arial", 18, "bold")).pack(pady=25)
-tk.Label(frame_registro, text="Capacidade (kg)").pack()
-entry_capacidade = tk.Entry(frame_registro, width=30)
-entry_capacidade.pack(pady=5)
+
+tk.Label(frame_registro, text="Selecione o Tipo de Botijão").pack()
+opcoes_botijao = {
+    "P2 (Liquinho) - 2 kg (~4 L)": 2,
+    "P5 - 5 kg (~12 L)": 5,
+    "P8 - 8 kg (~19 L)": 8,
+    "P13 - 13 kg (~31,5 L)": 13,
+    "P20 - 20 kg (~48 L)": 20,
+    "P45 - 45 kg (~108 L)": 45,
+    "P90 - 90 kg (~216 L)": 90,
+    "P190 - 190 kg (industrial)": 190
+}
+combo_botijao = ttk.Combobox(frame_registro, width=40, values=list(opcoes_botijao.keys()), state="readonly")
+combo_botijao.pack(pady=5)
+
 tk.Label(frame_registro, text="Empresa").pack()
 entry_empresa = tk.Entry(frame_registro, width=30)
 entry_empresa.pack(pady=5)
+
 tk.Label(frame_registro, text="Data Início (DD/MM/AAAA)").pack()
 entry_inicio = tk.Entry(frame_registro, width=30)
 entry_inicio.pack(pady=5)
+
 tk.Button(frame_registro, text="Registrar", command=registrar_botijao_gui, width=25).pack(pady=15)
 tk.Button(frame_registro, text="Voltar", command=lambda: mostrar_frame(frame_menu), width=25).pack(pady=5)
 

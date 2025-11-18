@@ -2,136 +2,163 @@ import psycopg2
 from db import conectar
 import pandas as pd
 import matplotlib.pyplot as plt
-from datetime import date, datetime
+from datetime import datetime
+from matplotlib.patches import Patch
 
 # =========================
-# Registrar novo botijão
+# Função auxiliar: formata a data automaticamente
 # =========================
-def registrar_botijao(usuario_id, litragem, data_inicio, empresa):
+def parse_data(data_str):
+    """
+    Converte uma string de data em datetime.
+    Aceita formatos comuns: DD/MM/YYYY, D-M-YYYY, DDMMYYYY.
+    """
+    data_str = str(data_str).strip().replace("-", "/")
+    numeros = ''.join(filter(str.isdigit, data_str))
+    if len(numeros) == 8:
+        dia = numeros[:2]
+        mes = numeros[2:4]
+        ano = numeros[4:]
+        data_formatada = f"{dia}/{mes}/{ano}"
+    else:
+        data_formatada = data_str
+
+    try:
+        return datetime.strptime(data_formatada, "%d/%m/%Y")
+    except Exception:
+        raise ValueError(f"Data inválida: {data_str}")
+
+# =========================
+# Registrar botijão
+# =========================
+def registrar_botijao(usuario_id, litragem, data_inicial, empresa):
+    """
+    Registra um novo botijão com eficácia indefinida (NULL).
+    """
     try:
         conn = conectar()
+        if conn is None:
+            print("❌ Falha na conexão com o banco.")
+            return
+
         cursor = conn.cursor()
+        query = """
+        INSERT INTO botijoes (usuario_id, litragem, data_inicial, eficacia, empresa)
+        VALUES (%s, %s, %s, NULL, %s)
+        """
+        litragem_num = int(litragem)
+        data_dt = parse_data(data_inicial)
+        empresa_trunc = str(empresa)[:100]
 
-        # Converter data de entrada (dd/mm/yyyy → yyyy-mm-dd)
-        data_inicio_fmt = datetime.strptime(data_inicio.strip(), "%d/%m/%Y").strftime("%Y-%m-%d")
-
-        cursor.execute("""
-            INSERT INTO botijoes (usuario_id, litragem, data_inicio, empresa)
-            VALUES (%s, %s, %s, %s)
-        """, (usuario_id, float(litragem), data_inicio_fmt, empresa))
+        cursor.execute(query, (usuario_id, litragem_num, data_dt, empresa_trunc))
         conn.commit()
-
         cursor.close()
         conn.close()
-        return f"✅ Botijão de {litragem}kg iniciado em {data_inicio} com sucesso!"
-
+        print("✅ Botijão registrado com sucesso!")
     except Exception as e:
-        return f"❌ Erro ao registrar botijão: {e}"
+        print(f"❌ Erro ao registrar botijão: {e}")
 
 # =========================
 # Acompanhar botijões
 # =========================
-def acompanhar_botijao(usuario_id, somente_ativos=False):
+def acompanhar_botijao(usuario_id):
+    """
+    Mostra todos os botijões registrados por um usuário.
+    """
     try:
         conn = conectar()
+        if conn is None:
+            return "❌ Falha na conexão com o banco."
         cursor = conn.cursor()
-
         query = """
-        SELECT id, litragem, data_inicio, data_fim, empresa
+        SELECT id, litragem, data_inicial, eficacia, empresa
         FROM botijoes
         WHERE usuario_id = %s
+        ORDER BY data_inicial DESC
         """
-        if somente_ativos:
-            query += " AND data_fim IS NULL"
-        query += " ORDER BY data_inicio DESC"
-
         cursor.execute(query, (usuario_id,))
         resultados = cursor.fetchall()
         cursor.close()
         conn.close()
 
         if not resultados:
-            if somente_ativos:
-                return "Nenhum botijão ativo encontrado."
             return "Nenhum botijão encontrado."
 
         texto = "📦 Seus botijões:\n"
-        
-        # --- INÍCIO DA CORREÇÃO ---
-        # Este bloco 'for' foi movido para DENTRO do 'try'
         for linha in resultados:
-            id_b, litragem, data_inicio, data_fim, empresa = linha
-
-            # --- Correção data_inicio ---
-            # Verifica se data_inicio não é None E se é um objeto date ou datetime
-            if data_inicio and isinstance(data_inicio, (date, datetime)):
-                data_inicio_str = data_inicio.strftime("%d/%m/%Y")
-            else:
-                # Se for None ou outro tipo, apenas converte para string
-                data_inicio_str = str(data_inicio) if data_inicio else ""
-
-            # --- Correção data_fim (com a regra "em uso") ---
-            # Verifica se data_fim não é None E se é um objeto date ou datetime
-            if data_fim and isinstance(data_fim, (date, datetime)):
-                data_fim_str = data_fim.strftime("%d/%m/%Y")
-            else:
-                # Se for None ou qualquer valor "falsy", usa "em uso"
-                data_fim_str = "em uso"
-
-            # --- Montagem da string ---
-            texto += (
-                f"ID: {id_b} | Litragem: {litragem}kg | Empresa: {empresa} | "
-                f"Início: {data_inicio_str} | Fim: {data_fim_str}\n"
+            id_b, litragem, data_inicial, eficacia, empresa = linha
+            data_str = (
+                data_inicial.strftime("%d/%m/%Y") if isinstance(data_inicial, datetime) else str(data_inicial)
             )
+            eficacia_str = f"{eficacia:.2f} kg/dia" if eficacia is not None else "Em uso"
+            texto += f"ID: {id_b} | Litragem: {litragem}kg | Empresa: {empresa} | Início: {data_str} | Eficácia: {eficacia_str}\n"
 
-        # Este 'return' também foi movido para DENTRO do 'try'
         return texto
-        # --- FIM DA CORREÇÃO ---
-
     except Exception as e:
         return f"❌ Erro ao acompanhar botijões: {e}"
+
 # =========================
-# Gráfico de duração média
+# Gerar gráfico de eficácia
 # =========================
 def gerar_grafico_duracao(usuario_id):
+    """
+    Gera um gráfico com o consumo médio (eficácia) de cada botijão finalizado.
+    """
     try:
         conn = conectar()
+        if conn is None:
+            print("❌ Falha na conexão com o banco.")
+            return
         query = """
-        SELECT litragem, data_inicio, data_fim, empresa
+        SELECT id, litragem, eficacia
         FROM botijoes
-        WHERE usuario_id = %s AND data_fim IS NOT NULL
+        WHERE usuario_id = %s AND eficacia IS NOT NULL
         """
         df = pd.read_sql_query(query, conn, params=(usuario_id,))
         conn.close()
 
         if df.empty:
-            print("⚠️ Nenhum botijão encerrado para gerar gráfico.")
+            print("⚠️ Nenhum botijão finalizado para gerar gráfico.")
             return
 
-        df["data_inicio"] = pd.to_datetime(df["data_inicio"], errors="coerce")
-        df["data_fim"] = pd.to_datetime(df["data_fim"], errors="coerce")
-        df = df.dropna(subset=["data_inicio", "data_fim"])
+        # Definir cores de acordo com eficácia
+        cores = []
+        for e in df["eficacia"]:
+            if e <= 0.43:
+                cores.append("green")
+            elif e <= 0.70:
+                cores.append("gold")
+            else:
+                cores.append("red")
 
-        if df.empty:
-            print("⚠️ Não há registros válidos para gerar gráfico.")
-            return
+        # Criar gráfico
+        plt.figure(figsize=(7, 5))
+        plt.bar(df["id"].astype(str), df["eficacia"], color=cores, edgecolor="black")
 
-        df["duracao"] = (df["data_fim"] - df["data_inicio"]).dt.days
-        
-        # Agrupar por 'litragem' E 'empresa'
-        df_media = df.groupby(["litragem", "empresa"])["duracao"].mean().reset_index()
-
-        # Criar um rótulo combinado para o eixo X
-        df_media["rotulo_eixo_x"] = df_media["litragem"].astype(str) + "kg - " + df_media["empresa"]
-
-        plt.figure(figsize=(6, 4)) # Aumentei o tamanho da figura para melhor visualização
-        plt.bar(df_media["rotulo_eixo_x"], df_media["duracao"]) # Usar o novo rótulo combinado
-        
-        plt.xlabel("Litragem e Empresa") # Mudando o rótulo do eixo X
-        plt.ylabel("Duração média (dias)")
-        plt.title("Duração média dos botijões por Litragem e Empresa") # Atualizando o título
-        
+        plt.xlabel("ID do Botijão")
+        plt.ylabel("Consumo Diário (kg/dia)")
+        plt.title("Desempenho dos Botijões de Gás")
         plt.grid(axis="y", linestyle="--", alpha=0.5)
+
+        # Legenda
+        legenda = [
+            Patch(color="green", label="🟢 Excelente (≤ 0.43 kg/dia)"),
+            Patch(color="gold", label="🟡 Médio (0.43–0.70 kg/dia)"),
+            Patch(color="red", label="🔴 Excessivo (> 0.70 kg/dia)")
+        ]
+        plt.legend(handles=legenda, loc="upper left")
+
+        # Mostrar valores
+        for i, val in enumerate(df["eficacia"]):
+            plt.text(
+                i,
+                val + 0.01,
+                f"{val:.2f} kg/dia",
+                ha="center",
+                fontsize=9,
+                color="black"
+            )
+
         plt.tight_layout()
         plt.show()
 
@@ -142,62 +169,60 @@ def gerar_grafico_duracao(usuario_id):
 # Finalizar botijão
 # =========================
 def finalizar_botijao(usuario_id, botijao_id, data_fim):
+    """
+    Finaliza um botijão, calcula os dias de uso e a eficácia (kg/dia),
+    e salva esse valor no banco.
+    """
     try:
         conn = conectar()
+        if conn is None:
+            return "❌ Falha na conexão com o banco."
         cursor = conn.cursor()
 
-        # Buscar litragem e data de início
+        # Obter litragem e data inicial do botijão
         cursor.execute("""
-            SELECT litragem, data_inicio FROM botijoes
+            SELECT litragem, data_inicial FROM botijoes
             WHERE id = %s AND usuario_id = %s
         """, (botijao_id, usuario_id))
         registro = cursor.fetchone()
 
         if not registro:
+            cursor.close()
+            conn.close()
             return "❌ Botijão não encontrado."
 
-        litragem, data_inicio = registro
+        litragem, data_inicial = registro
+        data_fim_dt = parse_data(data_fim)
+        data_inicio_dt = (
+            data_inicial if isinstance(data_inicial, datetime)
+            else datetime.strptime(str(data_inicial), "%Y-%m-%d")
+        )
 
-        # Converter litragem para número
-        try:
-            litragem = float(litragem)
-        except:
-            litragem = 0
+        # Calcular dias de uso
+        dias_uso = (data_fim_dt - data_inicio_dt).days
+        if dias_uso <= 0:
+            cursor.close()
+            conn.close()
+            return "❌ Data final inválida (anterior ou igual à inicial)."
 
-        # Converter datas
-        if isinstance(data_inicio, datetime):
-            data_inicio_dt = data_inicio.date()
-        else:
-            data_inicio_dt = datetime.strptime(str(data_inicio), "%Y-%m-%d").date()
+        # Calcular eficácia = peso (kg) / dias de uso
+        eficacia = round(float(litragem) / dias_uso, 2)
 
-        data_fim_dt = datetime.strptime(data_fim.strip(), "%d/%m/%Y").date()
-
-        # Calcular duração
-        duracao = (data_fim_dt - data_inicio_dt).days
-
-        # Atualizar no banco
+        # Atualizar eficácia no banco
         cursor.execute("""
             UPDATE botijoes
-            SET data_fim = %s
+            SET eficacia = %s
             WHERE id = %s AND usuario_id = %s
-        """, (data_fim_dt, botijao_id, usuario_id))
+        """, (eficacia, botijao_id, usuario_id))
         conn.commit()
 
-        # Definir duração ideal
-        if litragem <= 5:
-            ideal = 20
-        elif litragem <= 13:
-            ideal = 60
+        # Avaliação de desempenho
+        if eficacia <= 0.43:
+            msg = f"🟢 Excelente! Consumo médio de {eficacia:.2f} kg/dia."
+        elif eficacia <= 0.70:
+            msg = f"🟡 Bom desempenho. Consumo médio de {eficacia:.2f} kg/dia."
         else:
-            ideal = 90
-
-        # Mensagem de desempenho
-        if duracao >= ideal * 0.9:
-            msg = f"🟢 Excelente! Seu botijão de {litragem}kg durou {duracao} dias."
-        elif duracao >= ideal * 0.6:
-            msg = f"🟠 Bom desempenho! Seu botijão durou {duracao} dias."
-        else:
-            msg = f"🔴 Durou apenas {duracao} dias. Reveja o uso ou verifique vazamentos."
+            msg = f"🔴 Gasto elevado ({eficacia:.2f} kg/dia). Verifique possíveis desperdícios."
 
         cursor.close()
         conn.close()
