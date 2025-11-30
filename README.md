@@ -1,12 +1,12 @@
 🧯 Monitor de Botijões – UPX 3
 
 Integrantes: 
-Felipe Hennri Leite Lobo
-João Marcelo Ferreira
-Jorge Martesi Júnior
-Lauro Cesar Leandro Filho
-Miguel Santana Cruz
-Pedro Henrique Matieli Nogueira Cardoso
+Felipe Hennri Leite Lobo;
+João Marcelo Ferreira;
+Jorge Martesi Júnior;
+Lauro Cesar Leandro Filho;
+Miguel Santana Cruz;
+Pedro Henrique Matieli Nogueira Cardoso.
 
 TÍTULO:
 Monitoramento e Análise do Consumo de Gás Natural
