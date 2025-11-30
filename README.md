@@ -1,5 +1,16 @@
 🧯 Monitor de Botijões – UPX 3
 
+Integrantes: 
+Felipe Hennri Leite Lobo
+João Marcelo Ferreira
+Jorge Martesi Júnior
+Lauro Cesar Leandro Filho
+Miguel Santana Cruz
+Pedro Henrique Matieli Nogueira Cardoso
+
+TÍTULO:
+Monitoramento e Análise do Consumo de Gás Natural
+
 Aplicativo desktop desenvolvido em Python para registrar, acompanhar e finalizar botijões de gás, auxiliando o usuário a monitorar o consumo e avaliar o desempenho de cada botijão ao longo do tempo.
 O sistema também gera gráficos automáticos com base na duração de uso, permitindo identificar padrões de consumo e otimizar o uso doméstico.
 
